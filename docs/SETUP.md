@@ -24,11 +24,17 @@ ruff check . && pytest -q
 ```
 
 ## Security notes (for the secure-computing discussion)
-- Isolation per submission: `network_disabled`, 256 MB memory, 1 CPU, read-only rootfs, 64 MB tmpfs, 10 s timeout.
-- **Known gap:** the runner mounts `/var/run/docker.sock`, so a compromised runner process is root-equivalent on
-  the host. Mitigations to explore: rootless Docker, a socket proxy that only allows `containers.*`,
+Applied per test case: `network_disabled`, memory + swap cap (256 MB; 512 MB for Java), 1 CPU, 64 PIDs, all Linux
+capabilities dropped, `no-new-privileges`, non-root user (65534), read-only rootfs, 64 MB tmpfs, wall-clock
+timeout with kill, 64 KB output cap, user code passed via environment variables (no shell interpolation).
+
+Known gaps (good lab exercises):
+- **Docker socket:** the runner mounts `/var/run/docker.sock`, so a compromised runner process is root-equivalent
+  on the host. Explore rootless Docker, a socket proxy allowing only container create/start/wait/kill/remove,
   gVisor/Kata (`runtime="runsc"`), or Firecracker microVMs.
-- Not yet set: `pids_limit`, `cap_drop=["ALL"]`, `security_opt=["no-new-privileges"]`, a non-root `user`, output-size caps,
-  seccomp profile. These are natural lab exercises.
-- The API stores raw submitted code and has no authentication or rate limiting.
-- Compose uses default `judge/judge` credentials and exposes Postgres on 5432; change both outside a local lab.
+- No custom seccomp/AppArmor profile; default Docker profile only.
+- Env-var transport limits source size (API caps code at 64,000 characters) and exposes code in `docker inspect`.
+- API auth is a single shared `X-API-Key` on writes only; reads (including user ids) are open, and there is no
+  rate limiting. Submitted code is stored verbatim.
+- Compose uses default `judge/judge` credentials and publishes Postgres on 5432; change both outside a local lab.
+- Not verified in CI: the Docker sandbox and Kafka paths need a Docker host (`make up && make demo`).

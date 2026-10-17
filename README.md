@@ -56,24 +56,40 @@ docker-compose up --build
 
 This brings up: the FastAPI submission service, a Kafka broker, one sandbox-runner worker, and PostgreSQL.
 
-Submit code for judging:
+A sample problem (`sum-two`: read two integers, print their sum) is seeded automatically. Run
+`make images` once to pre-pull the sandbox images, then `make demo` to submit a correct and a wrong
+solution and watch them get graded. By hand:
 
 ```bash
-curl -X POST http://localhost:8000/submissions \
-  -H "Content-Type: application/json" \
-  -d '{
-        "user_id": "user_123",
-        "problem_id": "two-sum",
-        "language": "python",
-        "code": "print(sum([1,2,3]))"
-      }'
+curl -X POST http://localhost:8000/submissions -H "Content-Type: application/json" \
+  -d '{"user_id":"user_123","problem_id":"sum-two","language":"python",
+       "code":"a, b = map(int, input().split())\nprint(a + b)"}'
+
+curl http://localhost:8000/submissions/<submission_id>           # status + score
+curl http://localhost:8000/submissions/<submission_id>/results   # per-test-case outcome
+curl http://localhost:8000/leaderboard/sum-two
 ```
 
-Check the leaderboard:
+## API
 
-```bash
-curl http://localhost:8000/leaderboard/two-sum
-```
+| Method & path | Purpose |
+|---|---|
+| `PUT /problems` | create/replace a problem and its test cases (`id`, `title`, `time_limit_s`, `test_cases[{stdin, expected_stdout}]`) |
+| `GET /problems`, `GET /problems/{id}` | list / view problems (expected outputs are never returned) |
+| `POST /submissions` | submit `{user_id, problem_id, language, code}`; languages: `python`, `javascript`, `java` |
+| `GET /submissions/{id}` | status (`queued`/`running`/`completed`/`failed`/`timed_out`), score, runtime |
+| `GET /submissions/{id}/results` | per-test-case pass/fail with stdout/stderr |
+| `GET /submissions/{id}/audit` | status transition history |
+| `GET /users/{user_id}/submissions` | a user's history (`?problem_id=`) |
+| `GET /leaderboard/{problem_id}` | ranked best scores |
+
+Set `API_KEY` in the environment (e.g. `API_KEY=secret docker compose up`) to require `X-API-Key` on
+`PUT /problems` and `POST /submissions`.
+
+**Grading.** Each test case runs in a fresh container with the case's stdin; output is compared to the expected
+output ignoring trailing whitespace. Score = % of cases passed. Status is `timed_out` if any case timed out,
+`failed` if any crashed (non-zero exit, compile error), else `completed`. Only `completed` submissions with a
+score above 0 enter the leaderboard.
 
 See [docs/SETUP.md](docs/SETUP.md) for setup instructions and security notes.
 
@@ -89,9 +105,12 @@ distributed-code-judge/
 │   └── leaderboard/         # indexed leaderboard query service
 │       └── queries.py
 ├── db/
-│   └── schema.sql           # PostgreSQL schema + indexing strategy
-├── docs/
-│   └── architecture.md
+│   ├── schema.sql           # PostgreSQL schema + indexing strategy
+│   └── seed.sql             # sample problem
+├── docs/                    # architecture.md, SETUP.md
+├── tests/                   # grading unit tests + Postgres integration tests
+├── scripts/demo.sh
+├── Makefile
 ├── docker-compose.yml
 ├── CHANGELOG.md
 └── LICENSE

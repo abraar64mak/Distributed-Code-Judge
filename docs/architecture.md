@@ -45,3 +45,12 @@ A thin query layer over the `leaderboard_cache` table, kept separate from the ma
 ## CI/CD
 
 GitHub Actions (`.github/workflows/ci-cd.yml`) runs on every PR (lint, unit tests, docker build check) and on merge to `main` builds and tags a versioned image, ready for deployment.
+
+## Judging flow (v1.1)
+
+1. `PUT /problems` stores a problem and its test cases (`problems`, `test_cases`).
+2. `POST /submissions` validates, inserts `queued` + audit row, publishes to Kafka (waits for the broker ack; on
+   failure the submission is marked `failed` and the API returns 503).
+3. The runner moves it to `running`, loads time limit and test cases from PostgreSQL, runs one container per case,
+   grades stdout, and in one transaction writes the terminal status, score, per-case `results`, audit row and
+   leaderboard update. Offsets are committed only afterwards; redelivery of a finished submission is a no-op.
