@@ -9,7 +9,6 @@ from __future__ import annotations
 import json
 import os
 import time
-import uuid
 
 try:
     import docker
@@ -22,8 +21,9 @@ except ImportError:  # pragma: no cover
     KafkaConsumer = None
     KafkaProducer = None
 
-import asyncpg
 import asyncio
+
+import asyncpg
 
 KAFKA_BROKER = os.environ.get("KAFKA_BROKER", "localhost:9092")
 DATABASE_URL = os.environ.get("DATABASE_URL", "postgresql://judge:judge@localhost:5432/judge")
@@ -52,7 +52,11 @@ def run_in_sandbox(language: str, code: str) -> dict:
     run_cmd = {
         "python": ["python3", "-c", code],
         "javascript": ["node", "-e", code],
-        "java": ["sh", "-c", f'echo "{code}" > Main.java && javac Main.java && java Main'],
+        "java": [
+            "sh",
+            "-c",
+            'cd /tmp && printf "%s" "$JUDGE_CODE" > Main.java && javac Main.java && java Main',
+        ],
     }[language]
 
     start = time.time()
@@ -64,6 +68,7 @@ def run_in_sandbox(language: str, code: str) -> dict:
             network_disabled=True,
             mem_limit=MEMORY_LIMIT,
             nano_cpus=int(CPU_LIMIT * 1e9),
+            environment={"JUDGE_CODE": code} if language == "java" else None,
             read_only=True,
             tmpfs={"/tmp": "size=64m"},
         )

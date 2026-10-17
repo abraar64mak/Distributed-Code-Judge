@@ -2,7 +2,7 @@
 
 A customer-facing, distributed code execution platform for evaluating user-submitted code at scale — with Docker sandboxing, Kafka event streaming, PostgreSQL-backed audit logging, and automated CI/CD.
 
-[![CI/CD](https://github.com/<your-username>/distributed-code-judge/actions/workflows/ci-cd.yml/badge.svg)](https://github.com/<abraar64mak>/distributed-code-judge/actions)
+[![CI/CD](https://github.com/abraar64mak/distributed-code-judge/actions/workflows/ci-cd.yml/badge.svg)](https://github.com/abraar64mak/distributed-code-judge/actions)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 ---
@@ -49,7 +49,7 @@ This is a full-stack, production-shaped code judge: submissions come in over an 
 ## Quickstart
 
 ```bash
-git clone https://github.com/<your-username>/distributed-code-judge.git
+git clone https://github.com/abraar64mak/distributed-code-judge.git
 cd distributed-code-judge
 docker-compose up --build
 ```
@@ -74,6 +74,8 @@ Check the leaderboard:
 ```bash
 curl http://localhost:8000/leaderboard/two-sum
 ```
+
+See [docs/SETUP.md](docs/SETUP.md) for setup instructions and security notes.
 
 ## Repository layout
 
@@ -103,7 +105,7 @@ distributed-code-judge/
 
 ## Releases
 
-See [CHANGELOG.md](CHANGELOG.md) and [Releases](https://github.com/<your-username>/distributed-code-judge/releases).
+See [CHANGELOG.md](CHANGELOG.md) and [Releases](https://github.com/abraar64mak/distributed-code-judge/releases).
 
 ## License
 

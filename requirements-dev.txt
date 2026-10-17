@@ -1,0 +1,4 @@
+-r services/api/requirements.txt
+-r services/sandbox-runner/requirements.txt
+pytest>=8.0
+ruff>=0.4
