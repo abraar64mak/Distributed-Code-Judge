@@ -97,42 +97,51 @@ def run_in_sandbox(language: str, code: str) -> dict:
 
 
 async def persist_result(pool: asyncpg.Pool, submission_id: str, result: dict) -> None:
-    async with pool.acquire() as conn:
-        async with conn.transaction():
-            await conn.execute(
-                """
-                UPDATE submissions
-                SET status = $2, execution_ms = $3, completed_at = now()
-                WHERE id = $1
-                """,
-                submission_id,
-                result["status"],
-                result.get("execution_ms", 0),
-            )
-            await conn.execute(
-                """
-                INSERT INTO submission_audit_log (submission_id, previous_status, new_status)
-                VALUES ($1, 'queued', $2)
-                """,
-                submission_id,
-                result["status"],
-            )
+    """Record a terminal result. Idempotent: a redelivered message for an already-finished submission is a no-op."""
+    score = 100.0 if result["status"] == "completed" else 0.0
+    async with pool.acquire() as conn, conn.transaction():
+        prev = await conn.fetchrow(
+            "SELECT status FROM submissions WHERE id = $1 FOR UPDATE",
+            submission_id,
+        )
+        if prev is None or prev["status"] not in ("queued", "running"):
+            return
 
-            if result["status"] == "completed":
-                await conn.execute(
-                    """
-                    INSERT INTO leaderboard_cache (problem_id, user_id, best_score, best_submission_id, achieved_at)
-                    SELECT problem_id, user_id, 100.0, id, now()
-                    FROM submissions WHERE id = $1
-                    ON CONFLICT (problem_id, user_id)
-                    DO UPDATE SET
-                        best_score = GREATEST(leaderboard_cache.best_score, EXCLUDED.best_score),
-                        best_submission_id = EXCLUDED.best_submission_id,
-                        achieved_at = EXCLUDED.achieved_at
-                    WHERE EXCLUDED.best_score >= leaderboard_cache.best_score
-                    """,
-                    submission_id,
-                )
+        await conn.execute(
+            """
+            UPDATE submissions
+            SET status = $2, score = $3, execution_ms = $4, completed_at = now()
+            WHERE id = $1
+            """,
+            submission_id,
+            result["status"],
+            score,
+            result.get("execution_ms", 0),
+        )
+        await conn.execute(
+            """
+            INSERT INTO submission_audit_log (submission_id, previous_status, new_status)
+            VALUES ($1, $2, $3)
+            """,
+            submission_id,
+            prev["status"],
+            result["status"],
+        )
+        if result["status"] == "completed":
+            await conn.execute(
+                """
+                INSERT INTO leaderboard_cache (problem_id, user_id, best_score, best_submission_id, achieved_at)
+                SELECT problem_id, user_id, score, id, now()
+                FROM submissions WHERE id = $1
+                ON CONFLICT (problem_id, user_id)
+                DO UPDATE SET
+                    best_score = EXCLUDED.best_score,
+                    best_submission_id = EXCLUDED.best_submission_id,
+                    achieved_at = EXCLUDED.achieved_at
+                WHERE EXCLUDED.best_score > leaderboard_cache.best_score
+                """,
+                submission_id,
+            )
 
 
 async def consume_loop() -> None:

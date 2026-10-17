@@ -8,6 +8,16 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: judge
+          POSTGRES_PASSWORD: judge
+          POSTGRES_DB: judge
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U judge" --health-interval 5s --health-timeout 5s --health-retries 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -15,5 +25,6 @@ jobs:
           python-version: "3.11"
       - run: pip install -r requirements-dev.txt
       - run: ruff check .
+      - run: PGPASSWORD=judge psql -h localhost -U judge judge -f db/schema.sql
       - run: pytest -q
       - run: docker compose build
