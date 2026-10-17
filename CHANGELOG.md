@@ -1,5 +1,24 @@
 # Changelog
 
+## [1.1.0] - 2026-10-17
+
+### Added
+- Problems with graded test cases (`problems`, `test_cases` tables; `PUT /problems`, `GET /problems[/{id}]`).
+  Expected outputs are read by the runner straight from the database and never exposed by the API.
+- Real grading: each test case runs in its own container with stdin; score is the percentage of matching cases,
+  and per-case results are stored in `results` (`GET /submissions/{id}/results`, `/audit`).
+- `running` status and full audit trail (`queued -> running -> terminal`).
+- `GET /users/{user_id}/submissions`, ranks on `/leaderboard/{problem_id}`, optional `X-API-Key` auth on writes.
+- Sandbox hardening: all capabilities dropped, `no-new-privileges`, non-root user, PID limit, swap disabled,
+  output truncation; user code is passed via environment variables, never interpolated into a shell string.
+- Seed problem (`sum-two`), `make` targets, `scripts/demo.sh`, CI with Postgres, unit + integration tests.
+
+### Fixed
+- Runner is genuinely idempotent on Kafka redelivery; offsets are committed only after results are stored.
+- API returns 503 and marks the submission `failed` if it cannot be enqueued, instead of leaving it `queued`.
+- Java submissions no longer break on quotes or shell metacharacters.
+- Repository restructured into the documented layout; added missing API Dockerfile and requirements.
+
 ## [1.0.0] - 2026-07-01
 
 ### Added

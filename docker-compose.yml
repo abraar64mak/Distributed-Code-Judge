@@ -8,8 +8,14 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      - ./db/schema.sql:/docker-entrypoint-initdb.d/schema.sql
+      - ./db/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+      - ./db/seed.sql:/docker-entrypoint-initdb.d/02-seed.sql:ro
       - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U judge -d judge"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
 
   zookeeper:
     image: confluentinc/cp-zookeeper:7.6.0
@@ -32,22 +38,29 @@ services:
     build:
       context: .
       dockerfile: services/api/Dockerfile
+    restart: unless-stopped
     depends_on:
-      - postgres
-      - kafka
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_started
     ports:
       - "8000:8000"
     environment:
       DATABASE_URL: postgresql://judge:judge@postgres:5432/judge
       KAFKA_BROKER: kafka:9092
+      API_KEY: ${API_KEY:-}
 
   sandbox-runner:
     build:
       context: .
       dockerfile: services/sandbox-runner/Dockerfile
+    restart: unless-stopped
     depends_on:
-      - postgres
-      - kafka
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_started
     environment:
       DATABASE_URL: postgresql://judge:judge@postgres:5432/judge
       KAFKA_BROKER: kafka:9092

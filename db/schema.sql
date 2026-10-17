@@ -65,3 +65,21 @@ CREATE TABLE IF NOT EXISTS submission_audit_log (
 
 CREATE INDEX IF NOT EXISTS idx_audit_log_submission
     ON submission_audit_log (submission_id, changed_at);
+
+-- Problems and their graded test cases. The runner loads these directly from the database, so expected
+-- outputs never travel over Kafka or reach the API's public read endpoints.
+CREATE TABLE IF NOT EXISTS problems (
+    id              TEXT PRIMARY KEY,
+    title           TEXT NOT NULL,
+    time_limit_s    INTEGER NOT NULL DEFAULT 10 CHECK (time_limit_s BETWEEN 1 AND 60),
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS test_cases (
+    id              BIGSERIAL PRIMARY KEY,
+    problem_id      TEXT NOT NULL REFERENCES problems (id) ON DELETE CASCADE,
+    ordinal         INTEGER NOT NULL,
+    stdin           TEXT NOT NULL DEFAULT '',
+    expected_stdout TEXT NOT NULL,
+    UNIQUE (problem_id, ordinal)
+);
