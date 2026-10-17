@@ -4,7 +4,9 @@ FastAPI submission service for the distributed code judge.
 Accepts submissions, publishes them to Kafka for async execution by sandbox-runner workers, and exposes
 problem management plus status/result/leaderboard read endpoints.
 
-Set API_KEY to require an `X-API-Key` header on every write endpoint (submissions and problems).
+Set API_KEY to require an `X-API-Key` header on every write endpoint (submissions and problems), and
+PROTECT_READS=1 to require it on read endpoints too (everything except /health).
+SUBMIT_RATE_LIMIT caps submissions per user_id per minute (default 10, 0 disables).
 """
 
 from __future__ import annotations
@@ -13,7 +15,9 @@ import asyncio
 import json
 import os
 import secrets
+import time
 import uuid
+from collections import defaultdict, deque
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 
@@ -29,6 +33,9 @@ except ImportError:  # pragma: no cover
 KAFKA_BROKER = os.environ.get("KAFKA_BROKER", "localhost:9092")
 DATABASE_URL = os.environ.get("DATABASE_URL", "postgresql://judge:judge@localhost:5432/judge")
 API_KEY = os.environ.get("API_KEY", "")
+PROTECT_READS = os.environ.get("PROTECT_READS", "") not in ("", "0", "false")
+SUBMIT_RATE_LIMIT = int(os.environ.get("SUBMIT_RATE_LIMIT", "10"))
+RATE_WINDOW_S = 60
 
 SUPPORTED_LANGUAGES = {"python", "javascript", "java"}
 MAX_CODE_CHARS = 64_000
@@ -53,6 +60,31 @@ app = FastAPI(title="Distributed Code Judge", version="1.1.0", lifespan=lifespan
 def require_api_key(x_api_key: str = Header(default="")) -> None:
     if API_KEY and not secrets.compare_digest(x_api_key, API_KEY):
         raise HTTPException(status_code=401, detail="invalid or missing X-API-Key")
+
+
+def require_read_access(x_api_key: str = Header(default="")) -> None:
+    if PROTECT_READS:
+        require_api_key(x_api_key)
+
+
+_recent_submissions: dict[str, deque] = defaultdict(deque)
+
+
+def check_rate_limit(user_id: str) -> None:
+    """Sliding-window limit per user_id. In-memory, so per API process; put a gateway in front for a cluster."""
+    if SUBMIT_RATE_LIMIT <= 0:
+        return
+    now = time.monotonic()
+    window = _recent_submissions[user_id]
+    while window and now - window[0] > RATE_WINDOW_S:
+        window.popleft()
+    if len(window) >= SUBMIT_RATE_LIMIT:
+        raise HTTPException(
+            status_code=429,
+            detail="too many submissions; slow down",
+            headers={"Retry-After": str(int(RATE_WINDOW_S - (now - window[0])) + 1)},
+        )
+    window.append(now)
 
 
 class SubmissionRequest(BaseModel):
@@ -125,7 +157,7 @@ async def upsert_problem(problem: ProblemIn) -> dict:
     return {"id": problem.id, "test_cases": len(problem.test_cases)}
 
 
-@app.get("/problems")
+@app.get("/problems", dependencies=[Depends(require_read_access)])
 async def list_problems() -> list[dict]:
     async with _db_pool.acquire() as conn:
         rows = await conn.fetch(
@@ -138,7 +170,7 @@ async def list_problems() -> list[dict]:
     return [dict(r) for r in rows]
 
 
-@app.get("/problems/{problem_id}")
+@app.get("/problems/{problem_id}", dependencies=[Depends(require_read_access)])
 async def get_problem(problem_id: str) -> dict:
     """Public view of a problem; expected outputs are deliberately not exposed."""
     async with _db_pool.acquire() as conn:
@@ -162,6 +194,7 @@ async def create_submission(req: SubmissionRequest) -> SubmissionResponse:
         raise HTTPException(
             status_code=400, detail=f"unsupported language; choose one of {sorted(SUPPORTED_LANGUAGES)}"
         )
+    check_rate_limit(req.user_id)
 
     submission_id = str(uuid.uuid4())
     now = datetime.now(timezone.utc)
@@ -213,7 +246,7 @@ async def create_submission(req: SubmissionRequest) -> SubmissionResponse:
     return SubmissionResponse(submission_id=submission_id, status="queued")
 
 
-@app.get("/submissions/{submission_id}")
+@app.get("/submissions/{submission_id}", dependencies=[Depends(require_read_access)])
 async def get_submission(submission_id: uuid.UUID) -> dict:
     async with _db_pool.acquire() as conn:
         row = await conn.fetchrow(
@@ -226,7 +259,7 @@ async def get_submission(submission_id: uuid.UUID) -> dict:
     return dict(row)
 
 
-@app.get("/submissions/{submission_id}/results")
+@app.get("/submissions/{submission_id}/results", dependencies=[Depends(require_read_access)])
 async def get_submission_results(submission_id: uuid.UUID) -> list[dict]:
     """Per-test-case outcome, plus the audit trail of status transitions."""
     async with _db_pool.acquire() as conn:
@@ -240,7 +273,7 @@ async def get_submission_results(submission_id: uuid.UUID) -> list[dict]:
     return [dict(r) for r in rows]
 
 
-@app.get("/submissions/{submission_id}/audit")
+@app.get("/submissions/{submission_id}/audit", dependencies=[Depends(require_read_access)])
 async def get_submission_audit(submission_id: uuid.UUID) -> list[dict]:
     async with _db_pool.acquire() as conn:
         rows = await conn.fetch(
@@ -253,7 +286,7 @@ async def get_submission_audit(submission_id: uuid.UUID) -> list[dict]:
     return [dict(r) for r in rows]
 
 
-@app.get("/users/{user_id}/submissions")
+@app.get("/users/{user_id}/submissions", dependencies=[Depends(require_read_access)])
 async def user_submissions(
     user_id: str,
     problem_id: str | None = None,
@@ -275,7 +308,7 @@ async def user_submissions(
     return [dict(r) for r in rows]
 
 
-@app.get("/leaderboard/{problem_id}")
+@app.get("/leaderboard/{problem_id}", dependencies=[Depends(require_read_access)])
 async def leaderboard(problem_id: str, limit: int = Query(default=50, ge=1, le=500)) -> list[dict]:
     async with _db_pool.acquire() as conn:
         rows = await conn.fetch(

@@ -45,6 +45,8 @@ SHELL_COMMANDS = {
     ),
 }
 
+SANDBOX_RUNTIME = os.environ.get("SANDBOX_RUNTIME") or None  # e.g. "runsc" for gVisor
+
 DEFAULT_TIMEOUT_SECONDS = 10
 MEMORY_LIMITS = {"python": "256m", "javascript": "256m", "java": "512m"}
 CPU_LIMIT = 1.0
@@ -81,6 +83,7 @@ def run_case(language: str, code: str, stdin: str, timeout: int) -> dict:
             cap_drop=["ALL"],
             security_opt=["no-new-privileges"],
             user="65534:65534",
+            runtime=SANDBOX_RUNTIME,
             read_only=True,
             tmpfs={"/tmp": "size=64m,mode=1777,exec"},
         )

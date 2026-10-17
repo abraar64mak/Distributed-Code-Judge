@@ -83,8 +83,7 @@ curl http://localhost:8000/leaderboard/sum-two
 | `GET /users/{user_id}/submissions` | a user's history (`?problem_id=`) |
 | `GET /leaderboard/{problem_id}` | ranked best scores |
 
-Set `API_KEY` in the environment (e.g. `API_KEY=secret docker compose up`) to require `X-API-Key` on
-`PUT /problems` and `POST /submissions`.
+Set `API_KEY` in the environment (e.g. `API_KEY=secret docker compose up`) to require `X-API-Key` on writes; see [docs/SETUP.md](docs/SETUP.md) for all options (read protection, rate limit, DB password, gVisor).
 
 **Grading.** Each test case runs in a fresh container with the case's stdin; output is compared to the expected
 output ignoring trailing whitespace. Score = % of cases passed. Status is `timed_out` if any case timed out,

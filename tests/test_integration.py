@@ -173,3 +173,24 @@ def test_api_key_enforced(monkeypatch):
         assert client.put("/problems", json=body, headers={"X-API-Key": "wrong"}).status_code == 401
         assert client.put("/problems", json=body, headers={"X-API-Key": "s3cret"}).status_code == 200
         assert client.get("/problems").status_code == 200  # reads stay open
+
+
+def test_rate_limit_and_protected_reads(monkeypatch):
+    api = load_module("api_main", "services/api/main.py")
+    producer = FakeProducer()
+    api.get_producer = lambda: producer
+    monkeypatch.setattr(api, "SUBMIT_RATE_LIMIT", 2)
+    pid = f"rl-{uuid.uuid4().hex[:8]}"
+    user = f"spammer-{uuid.uuid4().hex[:6]}"
+    with TestClient(api.app) as client:
+        client.put("/problems", json={"id": pid, "title": "t", "test_cases": [{"expected_stdout": "x"}]})
+        body = {"user_id": user, "problem_id": pid, "language": "python", "code": "print(1)"}
+        assert [client.post("/submissions", json=body).status_code for _ in range(3)] == [200, 200, 429]
+        assert client.post("/submissions", json={**body, "user_id": "someone-else"}).status_code == 200
+        assert "Retry-After" in client.post("/submissions", json=body).headers
+
+        monkeypatch.setattr(api, "API_KEY", "k")
+        monkeypatch.setattr(api, "PROTECT_READS", True)
+        assert client.get("/problems").status_code == 401
+        assert client.get("/problems", headers={"X-API-Key": "k"}).status_code == 200
+        assert client.get("/health").status_code == 200

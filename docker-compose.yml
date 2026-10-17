@@ -3,10 +3,10 @@ services:
     image: postgres:16
     environment:
       POSTGRES_USER: judge
-      POSTGRES_PASSWORD: judge
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-judge}
       POSTGRES_DB: judge
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"   # local only; remove to keep Postgres reachable just from other services
     volumes:
       - ./db/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
       - ./db/seed.sql:/docker-entrypoint-initdb.d/02-seed.sql:ro
@@ -47,9 +47,11 @@ services:
     ports:
       - "8000:8000"
     environment:
-      DATABASE_URL: postgresql://judge:judge@postgres:5432/judge
+      DATABASE_URL: postgresql://judge:${POSTGRES_PASSWORD:-judge}@postgres:5432/judge
       KAFKA_BROKER: kafka:9092
       API_KEY: ${API_KEY:-}
+      PROTECT_READS: ${PROTECT_READS:-}
+      SUBMIT_RATE_LIMIT: ${SUBMIT_RATE_LIMIT:-10}
 
   sandbox-runner:
     build:
@@ -61,11 +63,26 @@ services:
         condition: service_healthy
       kafka:
         condition: service_started
+      docker-proxy:
+        condition: service_started
     environment:
-      DATABASE_URL: postgresql://judge:judge@postgres:5432/judge
+      DATABASE_URL: postgresql://judge:${POSTGRES_PASSWORD:-judge}@postgres:5432/judge
       KAFKA_BROKER: kafka:9092
+      # The runner never sees the real Docker socket, only this filtered endpoint.
+      DOCKER_HOST: tcp://docker-proxy:2375
+      SANDBOX_RUNTIME: ${SANDBOX_RUNTIME:-}   # e.g. runsc (gVisor) if installed on the host
+
+  # Only exposes the container lifecycle API calls the runner needs. Everything else (exec, volumes, networks,
+  # swarm, build, plugins, system info...) is denied by default. Not published to the host.
+  docker-proxy:
+    image: tecnativa/docker-socket-proxy:0.2.0
+    environment:
+      CONTAINERS: 1
+      POST: 1
+      IMAGES: 1
     volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    restart: unless-stopped
 
 volumes:
   pgdata:

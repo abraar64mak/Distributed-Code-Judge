@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.1.1] - 2026-10-17
+
+### Security
+- Runner no longer mounts the Docker socket; it uses a `docker-socket-proxy` sidecar that allows only
+  container/image calls. Postgres is bound to localhost; `POSTGRES_PASSWORD` is configurable.
+- Per-user submission rate limiting (`SUBMIT_RATE_LIMIT`), optional read protection (`PROTECT_READS`),
+  optional alternative sandbox runtime (`SANDBOX_RUNTIME`, e.g. gVisor).
+- Tests guard the compose security posture.
+
 ## [1.1.0] - 2026-10-17
 
 ### Added
