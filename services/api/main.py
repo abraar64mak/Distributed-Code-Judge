@@ -54,7 +54,7 @@ async def lifespan(_: FastAPI):
         await _db_pool.close()
 
 
-app = FastAPI(title="Distributed Code Judge", version="1.1.0", lifespan=lifespan)
+app = FastAPI(title="Distributed Code Judge", version="1.1.1", lifespan=lifespan)
 
 
 def require_api_key(x_api_key: str = Header(default="")) -> None:
