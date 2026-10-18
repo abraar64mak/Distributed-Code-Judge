@@ -50,7 +50,7 @@
 - Docker sandboxing: isolated, network-disabled, resource-limited execution per submission.
 - PostgreSQL schema with audit logging and indexing strategy for fast leaderboard queries under concurrent load.
 - Docker Compose setup for local development (API, Kafka, Postgres, sandbox runner).
-- CI/CD pipeline via GitHub Actions: lint, test, and versioned image builds on merge to `main`.
+- CI/CD pipeline via GitHub Actions: lint, test, and versioned image builds on merge to `main`. _(Correction: this workflow was not actually included in the upload. Lint, tests and a compose build check were added in 1.1.0; image publishing is still not implemented.)_
 
 ## [0.1.0] - 2026-05-01
 

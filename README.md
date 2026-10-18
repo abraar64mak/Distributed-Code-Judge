@@ -1,6 +1,6 @@
 # distributed-code-judge
 
-A customer-facing, distributed code execution platform for evaluating user-submitted code at scale — with Docker sandboxing, Kafka event streaming, PostgreSQL-backed audit logging, and automated CI/CD.
+A customer-facing, distributed code execution platform for evaluating user-submitted code at scale — with Docker sandboxing, Kafka event streaming, PostgreSQL-backed audit logging, and automated CI.
 
 [![CI/CD](https://github.com/abraar64mak/distributed-code-judge/actions/workflows/ci-cd.yml/badge.svg)](https://github.com/abraar64mak/distributed-code-judge/actions)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
@@ -44,7 +44,7 @@ This is a full-stack, production-shaped code judge: submissions come in over an 
 - **Docker sandboxing**: every submission runs in a freshly spawned, resource-limited container (CPU/memory/time capped) with no network access, so untrusted user code can't affect the host or other submissions.
 - **Kafka event streaming**: submissions are published as events and consumed asynchronously by sandbox runner workers, which decouples the API's response time from actual execution time and lets us scale runners independently.
 - **PostgreSQL audit logging**: every submission, execution result, and status transition is persisted with indexed columns on `(problem_id, user_id, submitted_at)` to keep leaderboard queries fast under concurrent load — see [`db/schema.sql`](db/schema.sql) for the indexing strategy.
-- **CI/CD via GitHub Actions**: every PR runs lint + tests; merges to `main` build and push a versioned container image.
+- **CI via GitHub Actions** (`.github/workflows/ci-cd.yml`): every PR and push to `main` runs lint, the test suite against a PostgreSQL service, and a `docker compose build` check. Publishing versioned images is not set up yet.
 
 ## Quickstart
 

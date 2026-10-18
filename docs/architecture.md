@@ -44,7 +44,7 @@ A thin query layer over the `leaderboard_cache` table, kept separate from the ma
 
 ## CI/CD
 
-GitHub Actions (`.github/workflows/ci-cd.yml`) runs on every PR (lint, unit tests, docker build check) and on merge to `main` builds and tags a versioned image, ready for deployment.
+GitHub Actions (`.github/workflows/ci-cd.yml`) runs on every PR and every push to `main`: lint (`ruff`), the test suite against a PostgreSQL service container, and a `docker compose build` check. It does not publish images; adding a job that builds and pushes versioned images to a registry on merge is future work.
 
 ## Judging flow (v1.1)
 
