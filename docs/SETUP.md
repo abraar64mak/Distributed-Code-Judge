@@ -27,6 +27,7 @@ ruff check . && pytest -q
 | Variable | Default | Effect |
 |---|---|---|
 | `POSTGRES_PASSWORD` | `judge` | database password (change it outside a throwaway lab) |
+| `POSTGRES_PORT` | `5432` | host port for Postgres (use e.g. `5433` if a local Postgres already holds 5432) |
 | `API_KEY` | unset | require `X-API-Key` on `PUT /problems` and `POST /submissions` |
 | `PROTECT_READS` | unset | with `API_KEY`, require the key on read endpoints too (all but `/health`) |
 | `SUBMIT_RATE_LIMIT` | `10` | max submissions per `user_id` per minute (`0` disables) |

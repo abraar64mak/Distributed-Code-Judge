@@ -6,7 +6,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-judge}
       POSTGRES_DB: judge
     ports:
-      - "127.0.0.1:5432:5432"   # local only; remove to keep Postgres reachable just from other services
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"   # local only; change POSTGRES_PORT if 5432 is taken
     volumes:
       - ./db/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
       - ./db/seed.sql:/docker-entrypoint-initdb.d/02-seed.sql:ro
