@@ -128,7 +128,7 @@ distributed-code-judge/
 
 ## Reliability notes
 
-- Sandbox containers are killed and reclaimed on timeout (default 10s wall clock, configurable per-problem).
+- Sandbox containers are killed and reclaimed on timeout (default 10s wall clock per test case, configurable per problem, plus a start-up allowance: 5s, or 20s for Java which also compiles).
 - Submission state machine: `queued -> running -> completed | failed | timed_out`, all transitions logged to the audit table.
 - Kafka consumer group is set up for at-least-once processing; the runner is idempotent on `submission_id` to safely handle redelivery.
 

@@ -52,6 +52,10 @@ MEMORY_LIMITS = {"python": "256m", "javascript": "256m", "java": "512m"}
 CPU_LIMIT = 1.0
 PIDS_LIMIT = 64
 MAX_OUTPUT_BYTES = 64 * 1024
+# The wall-clock budget also covers container start-up and, for Java, compilation, so each language gets an
+# allowance on top of the problem's time limit. Cold starts (first run after the Docker daemon restarts) can
+# take several seconds and must not be blamed on the submission.
+STARTUP_GRACE_SECONDS = {"python": 5, "javascript": 5, "java": 20}
 
 
 def _truncate(data: bytes) -> str:
@@ -90,7 +94,7 @@ def run_case(language: str, code: str, stdin: str, timeout: int) -> dict:
         )
         timed_out = False
         try:
-            exit_code = container.wait(timeout=timeout).get("StatusCode", 1)
+            exit_code = container.wait(timeout=timeout + STARTUP_GRACE_SECONDS.get(language, 5)).get("StatusCode", 1)
         except Exception:  # noqa: BLE001 - docker-py surfaces wait timeouts as requests exceptions
             timed_out = True
             exit_code = -1

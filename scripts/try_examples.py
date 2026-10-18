@@ -21,7 +21,7 @@ if os.environ.get("API_KEY"):
     HEADERS["X-API-Key"] = os.environ["API_KEY"]
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent / "examples"
-POLL_SECONDS = 90  # first Java/Node/Python run may include a slow cold start
+POLL_SECONDS = 150  # cold starts, Java compilation and 3 timeouts of 10s+ can add up
 
 
 def call(method, path, body=None):
@@ -57,7 +57,8 @@ def main():
     manifest = json.loads((ROOT / manifest_name).read_text())
     pending = []
     for i, e in enumerate(manifest):
-        code = (ROOT / "solutions" / e["file"]).read_text()
+        source = ROOT / "solutions" / e["file"]
+        code = (source if source.exists() else ROOT / e["file"]).read_text()  # probes live in examples/security/
         r = call(
             "POST",
             "/submissions",
