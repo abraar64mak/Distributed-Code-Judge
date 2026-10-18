@@ -1,4 +1,4 @@
-.PHONY: up down logs images test lint demo
+.PHONY: up down logs images test lint demo examples
 
 up:
 	docker compose up --build -d
@@ -23,3 +23,6 @@ test:
 
 demo:
 	./scripts/demo.sh
+
+examples:
+	python3 scripts/try_examples.py

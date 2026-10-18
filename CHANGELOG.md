@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.1.2] - 2026-10-18
+
+### Added
+- `examples/`: sample problems and solutions in Python, JavaScript and Java, plus deliberate failures (wrong answer,
+  timeout, runtime error, compile error) with expected outcomes in `manifest.json`.
+- `make examples` / `scripts/try_examples.py` verifies them against a running stack; `tests/test_examples.py`
+  verifies them against the grader using local interpreters.
+- `docs/WALKTHROUGH.md`: architecture tour, threat model, known weaknesses and experiments for the lab.
+
+### Fixed
+- Postgres host port configurable via `POSTGRES_PORT` (avoids clashes with a local Postgres).
+- `scripts/demo.sh` works with macOS's bash 3.2.
+
 ## [1.1.1] - 2026-10-17
 
 ### Security

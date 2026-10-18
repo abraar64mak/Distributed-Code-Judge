@@ -90,7 +90,12 @@ output ignoring trailing whitespace. Score = % of cases passed. Status is `timed
 `failed` if any crashed (non-zero exit, compile error), else `completed`. Only `completed` submissions with a
 score above 0 enter the leaderboard.
 
-See [docs/SETUP.md](docs/SETUP.md) for setup instructions and security notes.
+To check all three languages and the failure modes (wrong answer, timeout, runtime error, compile error) against
+your running stack, run `make examples`. It loads the problems in `examples/problems/`, submits every solution in
+`examples/solutions/`, and verifies each ends with the status and score listed in `examples/manifest.json`.
+
+Docs: [setup and configuration](docs/SETUP.md), [architecture reference](docs/architecture.md), and a
+[security-focused walkthrough with threat model and experiments](docs/WALKTHROUGH.md).
 
 ## Repository layout
 
@@ -108,7 +113,8 @@ distributed-code-judge/
 │   └── seed.sql             # sample problem
 ├── docs/                    # architecture.md, SETUP.md
 ├── tests/                   # grading unit tests + Postgres integration tests
-├── scripts/demo.sh
+├── examples/                # sample problems, solutions (python/js/java) and expected outcomes
+├── scripts/                 # demo.sh, try_examples.py
 ├── Makefile
 ├── docker-compose.yml
 ├── CHANGELOG.md

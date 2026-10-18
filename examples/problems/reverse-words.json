@@ -1,0 +1,10 @@
+{
+  "id": "reverse-words",
+  "title": "Reverse the order of words in a line",
+  "time_limit_s": 10,
+  "test_cases": [
+    {"stdin": "hello world\n", "expected_stdout": "world hello\n"},
+    {"stdin": "a b c d\n", "expected_stdout": "d c b a\n"},
+    {"stdin": "single\n", "expected_stdout": "single\n"}
+  ]
+}
