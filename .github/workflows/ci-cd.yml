@@ -33,5 +33,7 @@ jobs:
       - run: pip install -r requirements-dev.txt
       - run: ruff check .
       - run: PGPASSWORD=judge psql -h localhost -U judge judge -f db/schema.sql -f db/seed.sql
+      - name: Pull sandbox images (the real-Docker tests run when they are present)
+        run: docker pull python:3.11-slim && docker pull node:20-slim && docker pull eclipse-temurin:21-jdk
       - run: pytest -q
       - run: docker compose build

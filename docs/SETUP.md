@@ -39,18 +39,26 @@ capabilities dropped, `no-new-privileges`, non-root user (65534), read-only root
 timeout with kill, 64 KB output cap, user code passed via environment variables (no shell interpolation).
 
 Platform measures:
-- **Docker socket isolation:** the runner no longer mounts `/var/run/docker.sock`. It talks to a
-  `docker-socket-proxy` sidecar (read-only socket mount, not published to the host) that only allows container and
-  image calls; exec, volumes, networks, swarm, build and system endpoints are denied.
+- **Docker socket isolation:** the runner does not mount `/var/run/docker.sock`. It talks to a small policy proxy
+  (`services/docker-proxy/proxy.py`, standard library only) that holds the socket and is not published to the host.
+  The proxy checks the *parameters* of every container create request: the user must be 65534, networking disabled,
+  all capabilities dropped, `no-new-privileges`, read-only rootfs, only an `/tmp` tmpfs, bounded memory/PIDs/CPU,
+  no swap, only the three approved images and the `judge.sandbox` label. Any other field (privileged, binds,
+  mounts, devices, host namespaces...) is refused, as is every endpoint the runner doesn't need (exec, volumes,
+  networks, build, listing containers...). The runner can only start, wait for, read logs from, kill and remove
+  containers that carry its label, so it cannot touch Postgres, Kafka or other containers. Denials are logged as
+  `DENY ...` in the proxy's output.
 - Postgres is published on `127.0.0.1` only; password configurable. API has optional key auth, optional read
   protection and a per-user submission rate limit.
 
 Remaining gaps (good lab exercises):
-- **The proxy filters by endpoint, not by parameters.** A compromised runner can still ask for
-  `POST /containers/create` with `Privileged: true` or a host bind mount. Stronger options: rootless Docker for
-  the sandbox daemon, a policy-enforcing authorization plugin (OPA), gVisor/Kata via `SANDBOX_RUNTIME`, or
-  Firecracker microVMs, ideally on a dedicated host.
+- **The proxy is the trust anchor.** It runs as root with the Docker socket, so a bug in its ~250 lines would be a
+  host compromise. It is deliberately small and allow-list based (unknown JSON keys are rejected, so case or
+  escape tricks cannot smuggle fields), but it has had no independent audit. A compromised runner can still run
+  *allowed* sandboxes, e.g. send arbitrary commands to the approved images with the approved limits. Stronger
+  options: rootless Docker for the sandbox daemon, gVisor/Kata via `SANDBOX_RUNTIME`, or Firecracker microVMs,
+  ideally on a dedicated host.
 - No custom seccomp/AppArmor profile; default Docker profile only.
 - Env-var transport limits source size (API caps code at 64,000 characters) and exposes code in `docker inspect`.
 - Rate limiting is in-memory per API process; auth is a single shared key. Submitted code is stored verbatim.
-- Not verified in CI: the Docker sandbox, proxy and Kafka paths need a Docker host (`make up && make demo`).
+- Kafka is only exercised in the manual run (`make up && make demo`); the Docker sandbox and proxy are covered by automated tests when Docker and the sandbox images are available (always in CI).

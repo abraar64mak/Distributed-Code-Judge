@@ -20,9 +20,10 @@ def test_only_proxy_mounts_socket_read_only_and_is_unpublished():
     assert "ports" not in compose["docker-proxy"]
 
 
-def test_proxy_denies_dangerous_endpoints_by_default():
-    env = compose["docker-proxy"]["environment"]
-    assert set(env) == {"CONTAINERS", "POST", "IMAGES"}  # no EXEC, VOLUMES, NETWORKS, SWARM, BUILD, ...
+def test_proxy_is_the_policy_proxy_built_from_this_repo():
+    proxy = compose["docker-proxy"]
+    assert proxy["build"]["dockerfile"] == "services/docker-proxy/Dockerfile"
+    assert "image" not in proxy  # no generic third-party endpoint filter
 
 
 def test_postgres_published_on_localhost_only():

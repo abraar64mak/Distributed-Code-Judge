@@ -1,5 +1,23 @@
 # Changelog
 
+## [1.2.0] - 2026-10-18
+
+### Security
+- Replaced the endpoint-only `docker-socket-proxy` with a purpose-built policy proxy (`services/docker-proxy/`)
+  that validates container-create parameters (non-root, no network, no capabilities, read-only rootfs, no mounts or
+  privileged mode, approved images, bounded resources) and restricts the runner to containers it labelled. A
+  compromised runner can no longer request a privileged container or touch other containers.
+- Sandbox containers carry a `judge.sandbox=1` label.
+
+### Fixed
+- CI failed on a clean install because the test dependency `httpx`/`httpx2` was not declared.
+
+### Tests
+- Real-Docker tests for every sandbox limit (uid and capabilities, no network, read-only fs, memory kill, PID
+  limit, timeout and cleanup, output cap, no shell interpretation, Java compile errors) and for the policy proxy,
+  including live attempts at privileged containers, bind mounts and tampering with other containers. CI pulls the
+  sandbox images so these run there too.
+
 ## [1.1.2] - 2026-10-18
 
 ### Added

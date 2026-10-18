@@ -33,6 +33,11 @@ Stores:
 
 Indexing strategy: `leaderboard_cache` has a composite index on `(problem_id, best_score DESC, achieved_at ASC)`, which supports the leaderboard's "best score, earliest achieved wins ties" ordering directly, and `submissions` has `(user_id, problem_id, submitted_at DESC)` for user-history lookups without a full table scan. See inline comments in `db/schema.sql`.
 
+### 4b. Docker policy proxy (`services/docker-proxy/proxy.py`)
+The only component that touches the Docker socket. The runner's `DOCKER_HOST` points at it. It validates every
+container-create request against a strict allow-list (see `docs/SETUP.md`), refuses all other endpoints, and
+only allows operations on containers labelled `judge.sandbox=1`.
+
 ### 5. Leaderboard Query Service (`services/leaderboard/queries.py`)
 A thin query layer over the `leaderboard_cache` table, kept separate from the main API module so read-heavy leaderboard traffic can be scaled/cached independently from submission writes.
 

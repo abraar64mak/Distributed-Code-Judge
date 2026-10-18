@@ -75,6 +75,7 @@ def run_case(language: str, code: str, stdin: str, timeout: int) -> dict:
             detach=True,
             environment={"JUDGE_CODE": code, "JUDGE_INPUT": stdin},
             working_dir="/tmp",
+            labels={"judge.sandbox": "1"},
             network_disabled=True,
             mem_limit=mem,
             memswap_limit=mem,

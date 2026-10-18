@@ -73,14 +73,14 @@ services:
       DOCKER_HOST: tcp://docker-proxy:2375
       SANDBOX_RUNTIME: ${SANDBOX_RUNTIME:-}   # e.g. runsc (gVisor) if installed on the host
 
-  # Only exposes the container lifecycle API calls the runner needs. Everything else (exec, volumes, networks,
-  # swarm, build, plugins, system info...) is denied by default. Not published to the host.
+  # Policy-enforcing proxy (services/docker-proxy/proxy.py). Holds the only mount of the Docker socket (read-only
+  # bind, not published to the host). It validates the *parameters* of every container create request (non-root,
+  # no network, all capabilities dropped, read-only rootfs, no mounts/privileged, approved images, capped
+  # resources) and only lets the runner touch containers it created. Everything else is refused with 403.
   docker-proxy:
-    image: tecnativa/docker-socket-proxy:0.2.0
-    environment:
-      CONTAINERS: 1
-      POST: 1
-      IMAGES: 1
+    build:
+      context: .
+      dockerfile: services/docker-proxy/Dockerfile
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
     restart: unless-stopped

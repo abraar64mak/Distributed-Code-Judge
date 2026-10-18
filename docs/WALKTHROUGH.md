@@ -22,7 +22,7 @@ time budget and get a bad score.**
                                                   runner ───┘
                                                       │ create / start / wait / kill / remove
                                                       ▼
-                                            docker-socket-proxy ──▶ Docker daemon
+                                            docker policy proxy ──▶ Docker daemon
                                                                          │ one container per test case
                                                                          ▼
                                                                   sandbox (no network, no caps, non-root)
@@ -82,20 +82,22 @@ Each container is created fresh and force-removed afterwards, so no state carrie
 
 ### Platform controls
 
-- The runner does **not** mount the Docker socket. It talks to `docker-socket-proxy`, which holds the socket
-  read-only, is not published to the host, and allows only container and image calls. Exec, volumes, networks,
-  swarm, build and system endpoints return 403.
+- The runner does **not** mount the Docker socket. It talks to a policy proxy (`services/docker-proxy/`) that
+  holds the socket and is not published to the host. It enforces the sandbox settings on every container-create
+  request (rejecting any unknown field, privileged mode, mounts, extra capabilities, other users or images,
+  unbounded resources), refuses every endpoint the runner doesn't need, and only lets the runner act on
+  containers carrying its own label, so a compromised runner cannot kill Postgres or Kafka.
 - Postgres is bound to `127.0.0.1`; its password is configurable.
 - The API has a write key (`API_KEY`), optional read protection (`PROTECT_READS`) and a per-user rate limit.
-- A test (`tests/test_compose.py`) fails if a future change re-exposes the socket or publishes the proxy.
+- Tests fail if a future change re-exposes the socket or publishes the proxy (`tests/test_compose.py`), if the policy is loosened (`tests/test_docker_proxy.py`, including live attempts against a real daemon), or if a sandbox limit stops working (`tests/test_sandbox_docker.py`).
 
 ## 5. Known weaknesses (discussion material)
 
-1. **The socket proxy filters endpoints, not parameters.** An attacker who gains control of the *runner process*
-   (not the sandbox) could ask the proxy to `POST /containers/create` with `Privileged: true` or a host bind
-   mount. The runner is the trusted component here; compromising it, for example through a bug in how it parses
-   Kafka messages, defeats the proxy. Fixes: a policy-enforcing Docker authorization plugin (OPA), a rootless
-   Docker daemon dedicated to sandboxes, or microVMs (Firecracker, Kata) on a separate host.
+1. **The policy proxy is now the trust anchor.** A compromised runner can no longer ask for a privileged
+   container, a bind mount or another user; the proxy refuses those. But the proxy runs as root with the Docker
+   socket, so a bug in it would be a host compromise. It is small and allow-list based, yet unaudited, and it
+   must track Docker API changes. A compromised runner can still run *allowed* sandboxes with arbitrary commands.
+   Fixes: rootless Docker for the sandbox daemon, gVisor/Kata, or microVMs (Firecracker) on a separate host.
 2. **Shared kernel.** Containers share the host kernel; a kernel exploit escapes. gVisor/Kata reduce this; a
    dedicated machine contains the blast radius.
 3. **No custom seccomp/AppArmor profile**, only Docker's default.
@@ -122,11 +124,13 @@ Run the stack (`make up`), then:
 - **Filesystem:** try writing to `/` (read-only error) versus `/tmp` (works, vanishes afterwards).
 - **Privilege:** print `os.getuid()` (65534) and read `/proc/self/status` to see `CapEff: 0000000000000000`.
 - **Injection:** submit source containing quotes, `$(id)` and backticks; it should run as plain text.
-- **Docker access:** from inside a submission you can't reach the daemon. From the *runner* container, try
-  `curl docker-proxy:2375/containers/json` (allowed) versus `/volumes` or `/exec` (denied) to see the proxy's
-  endpoint filtering.
-- **Hardening exercise:** try creating a privileged container through the proxy and observe that it is permitted.
-  Then close the gap: add an OPA authorization plugin, or switch `SANDBOX_RUNTIME=runsc` and compare behaviour.
+- **Docker access:** from inside a submission you can't reach the daemon. From the *runner* container, send
+  `docker exec judge-runner python -c "..."` style requests to `docker-proxy:2375`: `POST /containers/create` with
+  `"HostConfig": {"Privileged": true}`, a bind mount, `"User": "root"` or another image, and `GET /containers/json`
+  or `/volumes`. Each returns 403; see the reason in `docker compose logs docker-proxy` (`DENY ...`).
+- **Break the proxy (exercise):** read `services/docker-proxy/proxy.py` and try to find a request that creates
+  something unsafe yet passes `check_create` (parser differentials, missing fields, other Docker API versions).
+  Any finding should become a case in `tests/test_docker_proxy.py`.
 - **Reliability:** `docker compose kill sandbox-runner` mid-run, restart it, and confirm the submission still
   reaches a terminal state exactly once (check `/submissions/{id}/audit`).
 
