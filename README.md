@@ -94,6 +94,11 @@ To check all three languages and the failure modes (wrong answer, timeout, runti
 your running stack, run `make examples`. It loads the problems in `examples/problems/`, submits every solution in
 `examples/solutions/`, and verifies each ends with the status and score listed in `examples/manifest.json`.
 
+To record a verified run on your own machine, with the output saved verbatim, run `scripts/record_run.sh`. It starts
+the stack, runs the demo, the 13 examples, sandbox probes (network, memory hog, fork bomb, write to `/`) and attacks
+against the Docker policy proxy, and writes `results/run-<timestamp>/REPORT.md` including your OS, Docker version
+and git commit. Add `PUSH=1` to commit and push the results to `main` with your own git login.
+
 Docs: [setup and configuration](docs/SETUP.md), [architecture reference](docs/architecture.md), and a
 [security-focused walkthrough with threat model and experiments](docs/WALKTHROUGH.md).
 

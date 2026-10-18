@@ -2,7 +2,8 @@
 """Loads the example problems and submits every solution in examples/manifest.json to a running stack, then
 checks each one ends with the expected status and score. Needs only the Python standard library.
 
-    python3 scripts/try_examples.py                 # API at http://localhost:8000
+    python3 scripts/try_examples.py                       # API at http://localhost:8000
+    python3 scripts/try_examples.py security-manifest.json  # sandbox probes (network, memory, fork bomb, ...)
     API=http://host:8000 API_KEY=secret python3 scripts/try_examples.py
 """
 
@@ -52,7 +53,8 @@ def main():
         call("PUT", "/problems", json.loads(path.read_text()))
     run_id = int(time.time())  # fresh user ids each run, so rate limits and leaderboards stay clean
 
-    manifest = json.loads((ROOT / "manifest.json").read_text())
+    manifest_name = sys.argv[1] if len(sys.argv) > 1 else "manifest.json"
+    manifest = json.loads((ROOT / manifest_name).read_text())
     pending = []
     for i, e in enumerate(manifest):
         code = (ROOT / "solutions" / e["file"]).read_text()

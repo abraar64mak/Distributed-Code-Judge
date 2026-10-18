@@ -23,6 +23,12 @@ pip install -r requirements-dev.txt
 ruff check . && pytest -q
 ```
 
+## Record a verified run
+`scripts/record_run.sh` (needs Docker running) starts the stack, runs everything, and saves the captured output in
+`results/run-<UTC timestamp>/`. Open `REPORT.md` there. Options: `PUSH=1` commits and pushes `results/` to
+`origin/main` with your git credentials, `SKIP_UP=1` reuses a stack that is already running, `DOWN=1` stops it
+afterwards. It picks a free Postgres host port automatically.
+
 ## Configuration (environment variables, set in your shell or a `.env` next to docker-compose.yml)
 | Variable | Default | Effect |
 |---|---|---|
