@@ -2,11 +2,17 @@
 # Submits a correct and a wrong solution to the seeded `sum-two` problem and prints the outcome.
 set -euo pipefail
 API="${API:-http://localhost:8000}"
-KEY_HEADER=()
-[ -n "${API_KEY:-}" ] && KEY_HEADER=(-H "X-API-Key: $API_KEY")
+# bash 3.2 (macOS default) treats an empty array as unbound under `set -u`, so build the args as a string.
+KEY_ARGS=""
+[ -n "${API_KEY:-}" ] && KEY_ARGS="-H X-API-Key:${API_KEY}"
+
+curl -fsS "$API/health" >/dev/null 2>&1 || {
+  echo "API not reachable at $API. Is the stack up? Run: make up && make logs" >&2
+  exit 1
+}
 
 submit() {
-  curl -fsS -X POST "$API/submissions" -H 'Content-Type: application/json' "${KEY_HEADER[@]}" \
+  curl -fsS -X POST "$API/submissions" -H 'Content-Type: application/json' $KEY_ARGS \
     -d "{\"user_id\":\"$1\",\"problem_id\":\"sum-two\",\"language\":\"python\",\"code\":$2}" |
     python3 -c 'import json,sys; print(json.load(sys.stdin)["submission_id"])'
 }
